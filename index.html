@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spy Game · Bellman-Ford</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <div class="alarm" id="alarm" aria-hidden="true"><div class="alarm-banner">⚠ ARMADILHA TEMPORAL DETECTADA ⚠</div></div>
+
+  <!-- ============ BRIEFING ============ -->
+  <section class="briefing" id="briefing">
+    <div class="briefing-card">
+      <div class="stamp">TOP SECRET</div>
+      <p class="brief-head">AGÊNCIA DE INTELIGÊNCIA · CANAL CRIPTOGRAFADO</p>
+      <h1 class="glitch" data-text="SPY GAME">SPY GAME</h1>
+      <p class="brief-sub">Operação Bellman-Ford</p>
+      <pre class="typewriter" id="briefText"></pre>
+      <button class="btn btn-primary" id="acceptBtn">▶ ACEITAR MISSÃO</button>
+      <p class="hint">Atalhos: <kbd>Espaço</kbd> play/pausa · <kbd>→</kbd> próximo passo · <kbd>←</kbd> voltar · <kbd>R</kbd> reiniciar</p>
+    </div>
+  </section>
+
+  <!-- ============ HEADER ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◉</span>
+      <div>
+        <div class="brand-title glitch-sm" data-text="SPY GAME">SPY GAME</div>
+        <div class="brand-sub">OPERAÇÃO BELLMAN-FORD · G = (V, E), w : E → ℝ</div>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-scn="m1"><span>01</span> Risco dos Esconderijos</button>
+      <button class="tab" data-scn="m2"><span>02</span> Detecção de Armadilhas</button>
+      <button class="tab" data-scn="free"><span>03</span> Laboratório</button>
+    </nav>
+    <div class="clock">
+      <div class="clock-label">ENTREGA · 17/11/2026</div>
+      <div class="clock-value" id="countdown">--:--:--</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============ MAPA ============ -->
+    <section class="panel map-panel">
+      <div class="panel-head">
+        <h2 id="scnTitle">Missão 1 · Risco dos Esconderijos</h2>
+        <span class="chip" id="phaseChip">STANDBY</span>
+      </div>
+      <p class="scn-desc" id="scnDesc"></p>
+      <div class="map-wrap">
+        <div class="radar" aria-hidden="true"><div class="sweep"></div></div>
+        <svg id="map" viewBox="0 0 900 500" role="img" aria-label="Mapa da rede de esconderijos">
+          <defs>
+            <pattern id="gridPat" width="30" height="30" patternUnits="userSpaceOnUse">
+              <path d="M30 0H0V30" fill="none" class="grid-line"/>
+            </pattern>
+            <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-default"/></marker>
+            <marker id="arr-neg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-neg"/></marker>
+            <marker id="arr-ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-ok"/></marker>
+            <marker id="arr-rej" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-rej"/></marker>
+            <marker id="arr-bad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-bad"/></marker>
+            <marker id="arr-tree" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m-tree"/></marker>
+            <filter id="glow" filterUnits="userSpaceOnUse" x="-50" y="-50" width="1000" height="600">
+              <feGaussianBlur stdDeviation="4" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect width="900" height="500" fill="url(#gridPat)"/>
+          <g id="edgesG"></g>
+          <g id="nodesG"></g>
+          <g id="agent" class="agent hidden">
+            <circle class="agent-glow" r="16"/>
+            <circle class="agent-core" r="8"/>
+            <text class="agent-icon" dy="4">✦</text>
+            <g class="agent-hud" transform="translate(0,-26)">
+              <rect x="-42" y="-13" width="84" height="20" rx="4"/>
+              <text id="agentCost" dy="2">custo 0</text>
+            </g>
+          </g>
+        </svg>
+        <div class="legend">
+          <span><i class="lg lg-tree"></i>árvore de rotas (π)</span>
+          <span><i class="lg lg-ok"></i>relaxou</span>
+          <span><i class="lg lg-rej"></i>sem melhoria</span>
+          <span><i class="lg lg-neg"></i>peso negativo</span>
+          <span><i class="lg lg-bad"></i>ciclo negativo</span>
+        </div>
+      </div>
+
+      <!-- controles -->
+      <div class="controls">
+        <button class="ctl" id="btnReset" title="Reiniciar (R)">⏮</button>
+        <button class="ctl" id="btnBack" title="Passo anterior (←)">◀</button>
+        <button class="ctl ctl-play" id="btnPlay" title="Executar / pausar (Espaço)">▶</button>
+        <button class="ctl" id="btnStep" title="Próximo passo (→)">▶|</button>
+        <button class="ctl" id="btnEnd" title="Ir para o resultado">⏭</button>
+        <div class="progress"><div class="progress-bar" id="progressBar"></div><span id="stepLabel">0 / 0</span></div>
+        <label class="speed">velocidade<input type="range" id="speed" min="1" max="10" value="5"></label>
+        <label class="toggle"><input type="checkbox" id="earlyStop" checked><span>parada antecipada</span></label>
+        <label class="toggle"><input type="checkbox" id="sound" checked><span>som</span></label>
+      </div>
+      <div class="narration" id="narration">Pressione ▶ para iniciar a varredura da rede.</div>
+    </section>
+
+    <!-- ============ LATERAL ============ -->
+    <aside class="side">
+      <section class="panel">
+        <div class="panel-head"><h3>Painel de Esconderijos</h3><span class="mini">d[v] · π[v]</span></div>
+        <div class="board" id="board"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Pseudocódigo</h3><span class="mini">CLRS</span></div>
+        <div class="code" id="code"></div>
+      </section>
+      <section class="panel editor hidden" id="editor">
+        <div class="panel-head"><h3>Editor de Rede</h3><span class="mini">arraste os nós no mapa</span></div>
+        <div class="editor-top">
+          <label>Origem <select id="srcSel"></select></label>
+          <button class="btn btn-sm" id="addVertex">+ esconderijo</button>
+          <button class="btn btn-sm" id="addEdge">+ rota</button>
+        </div>
+        <div class="edge-list" id="edgeList"></div>
+        <div class="editor-presets">
+          <button class="btn btn-sm" data-preset="m1">Rede original</button>
+          <button class="btn btn-sm" data-preset="m2">Com D→B = −6</button>
+          <button class="btn btn-sm" data-preset="rand">🎲 Aleatória</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ============ INFERIOR ============ -->
+    <section class="panel iter-panel">
+      <div class="panel-head"><h3>Evolução das distâncias por iteração</h3><span class="mini">células piscam quando mudam</span></div>
+      <div class="table-wrap"><table class="iter-table" id="iterTable"></table></div>
+    </section>
+
+    <section class="panel log-panel">
+      <div class="panel-head"><h3>Log da Missão</h3><span class="mini rec">● REC</span></div>
+      <div class="log" id="log"></div>
+    </section>
+
+    <section class="panel results hidden" id="results"></section>
+
+    <section class="panel agent-panel">
+      <div class="panel-head"><h3>Despachar Agente</h3><span class="mini">simulação da rota no mapa</span></div>
+      <p class="muted">Escolha o esconderijo de destino. O agente percorre o caminho mínimo calculado; se o destino for uma armadilha, ele fica preso no loop e o custo despenca rumo a −∞.</p>
+      <div class="agent-buttons" id="agentButtons"></div>
+      <div class="agent-report" id="agentReport"></div>
+    </section>
+  </main>
+
+  <footer class="foot">Trabalho · Algoritmo de Bellman-Ford · Spy Game — complexidade O(|V|·|E|)</footer>
+
+  <script src="js/bellman-ford.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
